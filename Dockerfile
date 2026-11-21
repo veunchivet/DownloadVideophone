@@ -9,7 +9,7 @@ RUN apt-get update \
 COPY --from=denoland/deno:bin /deno /usr/local/bin/deno
 
 WORKDIR /app
-RUN pip install --no-cache-dir -U "yt-dlp[default]"
+RUN pip install --no-cache-dir -U --pre "yt-dlp[default]"
 
 COPY index.html server.py ./
 
@@ -19,4 +19,4 @@ ENV VG_CLOUD=1 \
 EXPOSE 8800
 
 # update yt-dlp on every start so sites that change keep working
-CMD ["sh", "-c", "pip install -q --no-cache-dir -U 'yt-dlp[default]' || true; python server.py"]
+CMD ["sh", "-c", "pip install -q --no-cache-dir -U --pre 'yt-dlp[default]' || true; python server.py"]

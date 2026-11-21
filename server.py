@@ -23,7 +23,11 @@ import socket
 import sys
 import threading
 import time
+import html
+import http.cookiejar
+import subprocess
 import urllib.parse
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 try:
@@ -46,6 +50,13 @@ MAX_FILESIZE = 700 * 1024 * 1024 if IS_CLOUD else None
 # On Render add it as a Secret File named cookies.txt  (-> /etc/secrets/cookies.txt). Never commit it.
 COOKIES = next((c for c in (os.environ.get("VG_COOKIES_FILE", ""), "/etc/secrets/cookies.txt",
                             os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")) if c and os.path.isfile(c)), "")
+# Render secret files are read-only, but yt-dlp writes cookies back -> use a writable copy
+if COOKIES and COOKIES.startswith("/etc/secrets/"):
+    try:
+        shutil.copy(COOKIES, "/tmp/cookies.txt")
+        COOKIES = "/tmp/cookies.txt"
+    except OSError:
+        pass
 _jobs = threading.BoundedSemaphore(MAX_JOBS)
 HAS_FFMPEG = shutil.which("ffmpeg") is not None
 API_KEY = os.environ.get("VG_API_KEY", "")   # optional: set to require "Authorization: Api-Key <key>"
@@ -148,6 +159,104 @@ def run_download(url, quality, mode, audio_format):
         return os.path.basename(path)
 
 
+# ---------------- Facebook fallback (when yt-dlp can't parse the page) ----------------
+FB_RE = re.compile(r"(facebook\.com|fb\.watch|fb\.com)", re.I)
+UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+      "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+FB_HD = [r'"browser_native_hd_url":"([^"]+)"', r'"playable_url_quality_hd":"([^"]+)"',
+         r'"hd_src(?:_no_ratelimit)?":"([^"]+)"', r'hd_src(?:_no_ratelimit)?:"([^"]+)"']
+FB_SD = [r'"browser_native_sd_url":"([^"]+)"', r'"playable_url":"([^"]+)"',
+         r'"sd_src(?:_no_ratelimit)?":"([^"]+)"', r'sd_src(?:_no_ratelimit)?:"([^"]+)"']
+
+
+def _fb_opener():
+    jar = http.cookiejar.MozillaCookieJar()
+    if COOKIES:
+        try:
+            jar.load(COOKIES, ignore_discard=True, ignore_expires=True)
+        except Exception:
+            pass
+    op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+    op.addheaders = [("User-Agent", UA),
+                     ("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
+                     ("Accept-Language", "en-US,en;q=0.9"),
+                     ("Sec-Fetch-Mode", "navigate"), ("Sec-Fetch-Site", "none"), ("Sec-Fetch-Dest", "document")]
+    return op
+
+
+def _unescape(u):
+    try:
+        u = json.loads('"' + u + '"')
+    except Exception:
+        u = u.replace("\\/", "/")
+    return html.unescape(u)
+
+
+def fb_find_video(page, quality):
+    order = (FB_HD + FB_SD) if quality in ("max", "1080", "720") else (FB_SD + FB_HD)
+    for pat in order:
+        m = re.search(pat, page)
+        if m:
+            return _unescape(m.group(1))
+    return None
+
+
+def fb_title(page):
+    for pat in (r'<meta property="og:title" content="([^"]{1,200})"', r'<title>([^<]{1,200})</title>'):
+        m = re.search(pat, page)
+        if m:
+            t = html.unescape(m.group(1)).strip()
+            if t and t.lower() not in ("facebook", "log in or sign up to view", "log into facebook"):
+                return t
+    return "facebook_video"
+
+
+def safe_name(t):
+    t = re.sub(r'[\\/:*?"<>|\r\n\t]+', " ", t).strip()[:70].strip() or "video"
+    return t
+
+
+def fb_fallback(url, quality, mode, audio_format):
+    op = _fb_opener()
+    page = op.open(url, timeout=30).read().decode("utf-8", "ignore")
+    vurl = fb_find_video(page, quality)
+    if not vurl:
+        raise RuntimeError("Facebook: no video URL in page (video may be private or login required)")
+    m = re.search(r"/(?:videos|reel|v)/(\d+)|[?&]v=(\d+)", url)
+    vid = (m.group(1) or m.group(2)) if m else str(int(time.time()))
+    base = os.path.join(DL_DIR, f"{safe_name(fb_title(page))} [{vid}]")
+    mp4 = base + ".mp4"
+    with op.open(urllib.request.Request(vurl, headers={"Referer": "https://www.facebook.com/"}), timeout=60) as r, \
+            open(mp4 + ".part", "wb") as f:
+        shutil.copyfileobj(r, f, 256 * 1024)
+    os.replace(mp4 + ".part", mp4)
+    if mode in ("audio", "mute") and HAS_FFMPEG:
+        if mode == "audio":
+            ext = audio_format if audio_format in ("mp3", "opus", "wav") else "m4a"
+            out = base + "." + ext
+            args = ["-vn"] + (["-c:a", "copy"] if ext == "m4a" else ["-b:a", "192k"])
+        else:
+            out = base + " (mute).mp4"
+            args = ["-an", "-c:v", "copy"]
+        subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", mp4, *args, out], check=True)
+        os.remove(mp4)
+        return os.path.basename(out)
+    return os.path.basename(mp4)
+
+
+def download_any(url, quality, mode, audio_format):
+    try:
+        return run_download(url, quality, mode, audio_format)
+    except Exception as e:
+        if not FB_RE.search(url):
+            raise
+        print("↪️  yt-dlp failed, trying Facebook fallback:", str(e)[:120])
+        try:
+            return fb_fallback(url, quality, mode, audio_format)
+        except Exception as e2:
+            raise RuntimeError(f"{e}  |  fallback: {e2}")
+
+
 def classify_error(msg):
     m = msg.lower()
     if "unsupported url" in m:
@@ -241,7 +350,7 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json({"status": "error", "error": {"code": "error.api.rate_exceeded",
                                        "context": {"message": "server busy"}}})
             try:
-                name = run_download(url, quality, mode, audio_format)
+                name = download_any(url, quality, mode, audio_format)
             finally:
                 _jobs.release()
         except Exception as e:
