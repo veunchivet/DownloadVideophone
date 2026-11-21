@@ -4,6 +4,18 @@ App សម្រាប់ទូរស័ព្ទ៖ ដាក់ Link វីដ
 
 🔗 **App:** https://veunchivet.github.io/DownloadVideophone/
 
+## ☁️ ប្រើដូច savefrom (Server លើ Cloud — គ្មាន Termux)
+
+App ភ្ជាប់ទៅ Server Cloud ដោយស្វ័យប្រវត្តិ: `https://downloadvideophone.onrender.com`
+
+**ដាក់ Server ឡើង Render (ធ្វើម្ដងប៉ុណ្ណោះ, ឥតគិតថ្លៃ):**
+1. ចូល https://render.com → Sign in ជាមួយ GitHub
+2. **New → Blueprint** → ជ្រើស Repo `DownloadVideophone` → **Apply**
+3. រង់ចាំ Build ~5 នាទី → Server រួចរាល់
+
+> Render Free នឹង "ដេក" ពេលគ្មានអ្នកប្រើ 15 នាទី — ការទាញលើកដំបូងបន្ទាប់ពីដេកអាចចាំ ~1 នាទី។
+> បើ Render ផ្ដល់ URL ផ្សេងពី `downloadvideophone.onrender.com` សូមប្ដូរ `DEFAULT_SERVER` ក្នុង `index.html`។
+
 ## ប្រើលើ Android (Termux)
 
 1. ដំឡើង **Termux** ពី F-Droid
@@ -35,5 +47,6 @@ python server.py
 |---|---|
 | `index.html` | App (UI) — Host លើ GitHub Pages |
 | `server.py` | Server ទាញវិដេអូ (yt-dlp), API ដូច cobalt |
+| `Dockerfile`, `render.yaml` | សម្រាប់ Deploy Server ទៅ Render |
 
 > សូមទាញតែវិដេអូដែលអ្នកមានសិទ្ធិប្រើប្រាស់ ឬជាវិដេអូរបស់ខ្លួនឯង។

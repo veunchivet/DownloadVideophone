@@ -227,7 +227,8 @@ footer{text-align:center;color:#545b6e;font-size:11.5px;margin-top:20px;line-hei
 <div class="sheet" id="sheet">
   <div class="grab"></div>
   <h2>⚙️ ការកំណត់ Server</h2>
-  <p class="sub">App នេះត្រូវការ Server មួយសម្រាប់ទាញវិដេអូ។ ប្រើ <b>server.py</b> (yt-dlp) នៅលើកុំព្យូទ័ររបស់អ្នក ឬ Server ប្រភេទ cobalt ក៏បាន។</p>
+  <p class="sub">ធម្មតា App ប្រើ Server លើ Cloud ដោយស្វ័យប្រវត្តិ (មិនបាច់កំណត់អ្វីទេ)។ អ្នកអាចប្ដូរទៅ <b>server.py</b> លើ PC / Termux ឬ Server cobalt ក៏បាន។</p>
+  <button class="btn" id="btnCloud" style="width:100%;margin-bottom:12px">☁️ ប្រើ Server Cloud (Default)</button>
   <div class="field"><div class="label">Server URL</div><input id="srvUrl" placeholder="http://192.168.1.10:8800" inputmode="url" autocapitalize="off" autocomplete="off"></div>
   <div class="field"><div class="label">API Key (ស្រេចចិត្ត)</div><input id="srvKey" placeholder="ទុកទទេ បើមិនមាន" autocapitalize="off" autocomplete="off"></div>
   <div class="status" id="srvStatus"></div>
@@ -266,6 +267,10 @@ const store = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
+
+/* ---------- cloud server (like savefrom) ---------- */
+// Public server on Render. Change this if your Render URL is different.
+const DEFAULT_SERVER = "https://downloadvideophone.onrender.com";
 
 /* ---------- state ---------- */
 let cfg = store.get("vg_cfg", { server: "", key: "", mode: "auto", quality: "720", audioFormat: "mp3" });
@@ -586,9 +591,9 @@ const openSheet = () => {
 const closeSheet = () => { $("#sheet").classList.remove("on"); $("#sheetBg").classList.remove("on"); };
 $("#btnSettings").onclick = openSheet; $("#sheetBg").onclick = closeSheet;
 
-async function testServer(server, key){
+async function testServer(server, key, ms){
   const h = { "Accept":"application/json" }; if (key) h["Authorization"] = "Api-Key " + key;
-  const ctrl = new AbortController(); const tm = setTimeout(() => ctrl.abort(), 8000);
+  const ctrl = new AbortController(); const tm = setTimeout(() => ctrl.abort(), ms || 8000);
   try {
     const r = await fetch(normServer(server) + "/", { headers:h, signal:ctrl.signal });
     const j = await r.json();
@@ -600,12 +605,13 @@ async function testServer(server, key){
 $("#btnTest").onclick = async () => {
   const s = $("#srvStatus"); s.className = "status"; s.textContent = "កំពុងសាកល្បង...";
   try {
-    const info = await testServer($("#srvUrl").value, $("#srvKey").value.trim());
+    const info = await testServer($("#srvUrl").value, $("#srvKey").value.trim(), 90000);
     s.className = "status ok"; s.textContent = "✅ ភ្ជាប់បានជោគជ័យ · " + info;
   } catch(e){
     s.className = "status bad"; s.textContent = "❌ ភ្ជាប់មិនបាន — ពិនិត្យ URL / WiFi / Server";
   }
 };
+$("#btnCloud").onclick = () => { $("#srvUrl").value = DEFAULT_SERVER; $("#srvKey").value = ""; $("#btnTest").click(); };
 $("#btnSave").onclick = () => {
   cfg.server = normServer($("#srvUrl").value); cfg.key = $("#srvKey").value.trim();
   store.set("vg_cfg", cfg); closeSheet(); toast("💾 បានរក្សាទុក"); checkDot();
@@ -613,7 +619,11 @@ $("#btnSave").onclick = () => {
 async function checkDot(){
   const dot = $("#srvDot");
   if (!cfg.server){ dot.classList.remove("on"); return; }
-  try { await testServer(cfg.server, cfg.key); dot.classList.add("on"); } catch(e){ dot.classList.remove("on"); }
+  // free cloud servers sleep when idle — first wake-up can take ~1 minute
+  const slow = setTimeout(() => toast("⏳ កំពុងដាស់ Server... (លើកដំបូងអាចយូរ ~1 នាទី)"), 2500);
+  try { await testServer(cfg.server, cfg.key, 90000); dot.classList.add("on"); }
+  catch(e){ dot.classList.remove("on"); }
+  finally { clearTimeout(slow); }
 }
 
 /* ---------- auto-connect when served by server.py ---------- */
@@ -623,14 +633,16 @@ async function checkDot(){
     const tries = [];
     if (/^https?:$/.test(location.protocol)) tries.push(location.origin);
     tries.push("http://127.0.0.1:8800");          // server.py running on this phone (Termux)
+    let found = false;
     for (const s of tries){
       try {
-        const info = await testServer(s, "");
-        cfg.server = s; store.set("vg_cfg", cfg);
+        const info = await testServer(s, "", 3000);
+        cfg.server = s; store.set("vg_cfg", cfg); found = true;
         toast("🔌 ភ្ជាប់ Server ស្វ័យប្រវត្តិ · " + info);
         break;
       } catch(e){}
     }
+    if (!found && DEFAULT_SERVER){ cfg.server = DEFAULT_SERVER; store.set("vg_cfg", cfg); }
   }
   checkDot();
   // Accept ?url= / shared text when launched from share target or bookmark

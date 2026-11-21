@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: downloadvideophone
+    runtime: docker
+    plan: free
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: VG_CLOUD
+        value: "1"

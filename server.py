@@ -33,11 +33,20 @@ except ImportError:
     sys.exit(1)
 
 VERSION = "1.0"
-PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8800
+PORT = int(sys.argv[1]) if len(sys.argv) > 1 else int(os.environ.get("PORT", 8800))
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 APP_FILE = os.path.join(BASE_DIR, "index.html")
 DL_DIR = os.path.join(BASE_DIR, "downloads")
-KEEP_HOURS = 24                      # auto-delete files older than this
+# Cloud mode (Render / Hugging Face / VG_CLOUD=1): public server like savefrom
+IS_CLOUD = bool(os.environ.get("VG_CLOUD") or os.environ.get("RENDER") or os.environ.get("SPACE_ID"))
+KEEP_HOURS = 1 if IS_CLOUD else 24   # auto-delete files older than this
+MAX_JOBS = int(os.environ.get("VG_MAX_JOBS", 2 if IS_CLOUD else 4))   # parallel downloads
+MAX_FILESIZE = 700 * 1024 * 1024 if IS_CLOUD else None
+# optional cookies.txt (Netscape format) for private / login-only videos.
+# On Render add it as a Secret File named cookies.txt  (-> /etc/secrets/cookies.txt). Never commit it.
+COOKIES = next((c for c in (os.environ.get("VG_COOKIES_FILE", ""), "/etc/secrets/cookies.txt",
+                            os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")) if c and os.path.isfile(c)), "")
+_jobs = threading.BoundedSemaphore(MAX_JOBS)
 HAS_FFMPEG = shutil.which("ffmpeg") is not None
 API_KEY = os.environ.get("VG_API_KEY", "")   # optional: set to require "Authorization: Api-Key <key>"
 
@@ -92,6 +101,10 @@ def build_opts(quality, mode, audio_format):
         "concurrent_fragment_downloads": 4,
         "retries": 3,
     }
+    if MAX_FILESIZE:
+        opts["max_filesize"] = MAX_FILESIZE
+    if COOKIES:
+        opts["cookiefile"] = COOKIES
     if mode == "audio":
         opts["format"] = "bestaudio/best"
         if HAS_FFMPEG and audio_format in ("mp3", "opus", "wav"):
@@ -185,6 +198,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urllib.parse.urlparse(self.path).path
+        if path == "/health":
+            return self.send_json({"ok": True})
         if path in ("/", "/index.html"):
             accept = self.headers.get("Accept", "")
             if "text/html" in accept and os.path.exists(APP_FILE):
@@ -222,14 +237,21 @@ class Handler(BaseHTTPRequestHandler):
         print(f"⬇️  {mode} {quality}  {url}")
         try:
             cleanup_old()
-            name = run_download(url, quality, mode, audio_format)
+            if not _jobs.acquire(timeout=120):
+                return self.send_json({"status": "error", "error": {"code": "error.api.rate_exceeded",
+                                       "context": {"message": "server busy"}}})
+            try:
+                name = run_download(url, quality, mode, audio_format)
+            finally:
+                _jobs.release()
         except Exception as e:
             msg = re.sub(r"\x1b\[[0-9;]*m", "", str(e))
             print("❌ ", msg)
             return self.send_json({"status": "error",
                                    "error": {"code": classify_error(msg), "context": {"message": msg[:300]}}})
         host = self.headers.get("Host") or f"{lan_ip()}:{PORT}"
-        file_url = f"http://{host}/file/{urllib.parse.quote(name)}"
+        scheme = (self.headers.get("X-Forwarded-Proto") or "http").split(",")[0].strip()
+        file_url = f"{scheme}://{host}/file/{urllib.parse.quote(name)}"
         print("✅ ", name)
         res = {"status": "tunnel", "url": file_url, "filename": name}
         if SAVED_TO:
@@ -287,7 +309,10 @@ def main():
     print("=" * 52)
     print("  Chivet-kh Video Grab Server  v" + VERSION)
     print("=" * 52)
-    if IS_TERMUX:
+    if IS_CLOUD:
+        print(f"  ☁️  Cloud mode · port {PORT} · keep files {KEEP_HOURS}h · max jobs {MAX_JOBS}")
+        print(f"  🍪 cookies: {'yes' if COOKIES else 'no'}")
+    elif IS_TERMUX:
         print(f"  📱 បើក Chrome លើទូរស័ព្ទនេះ:  http://127.0.0.1:{PORT}")
         if not SAVED_TO:
             print("  ⚠️  Run  termux-setup-storage  ដើម្បីរក្សាវិដេអូចូល Download/VideoGrab")
