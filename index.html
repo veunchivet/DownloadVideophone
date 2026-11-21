@@ -595,11 +595,21 @@ $("#btnDl").onclick = async () => {
     } else blob = await r.blob();
     blobFile = new File([blob], filename, { type });
     setProg(100, `<b>✅ ទាញរួច</b> · ${fmtSize(blob.size)}`, true);
-    // Step 2: one tap to save (Chrome only saves reliably inside a tap)
     const sb = $("#btnShare");
-    sb.textContent = isIOS ? "📲 រក្សាទុកក្នុង Photos" : "💾 រក្សាទុកចូល Gallery";
-    sb.style.display = "flex";
     btn.style.display = "none";
+    if (isIOS){
+      // iPhone: Photos can only be reached through the Share sheet, which needs a tap
+      sb.textContent = "📲 រក្សាទុកក្នុង Photos";
+      sb.style.display = "flex";
+    } else {
+      // Android / PC: save automatically as soon as it reaches 100%
+      saveBlob(blob, filename);
+      showDlNote(SAVED_HELP + "<br><small style='opacity:.8'>បើ Chrome សួរ “Download multiple files” សូមចុច <b>Allow</b>។ បើរកមិនឃើញ ចុចប៊ូតុងខាងក្រោម។</small>");
+      setProg(100, `<b>✅ បានរក្សាទុកចូល Gallery</b> · ${fmtSize(blob.size)}`, true);
+      sb.textContent = "💾 រក្សាទុកម្ដងទៀត";
+      sb.style.display = "flex";
+      toast("✅ បានរក្សាទុកចូល Gallery");
+    }
   } catch(e){
     // server blocked the in-app download → let the browser fetch the link itself
     setProg(-1);
