@@ -88,9 +88,14 @@ audio{background:transparent}
 .btn svg{width:17px;height:17px}
 .btn.primary{grid-column:1/-1;border:0;background:linear-gradient(135deg,var(--accent),#5a3fe0);font-size:15px;padding:14px;box-shadow:0 8px 22px rgba(124,92,255,.3)}
 .btn.save{grid-column:1/-1;border:0;background:linear-gradient(135deg,#25c486,#169a66);display:none}
-.prog{height:8px;border-radius:99px;background:#0d1017;border:1px solid var(--line);overflow:hidden;margin:12px 0 4px;display:none}
-.prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .2s}
-.prog-txt{font-size:12px;color:var(--muted);display:none;text-align:center}
+.prog{height:12px;border-radius:99px;background:#0d1017;border:1px solid var(--line);overflow:hidden;margin:14px 0 6px;display:none}
+.prog i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--accent2),var(--accent));box-shadow:0 0 14px rgba(124,92,255,.6);transition:width .25s;position:relative;overflow:hidden}
+.prog i::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.35),transparent);animation:shine 1.2s linear infinite}
+.prog.done i{background:linear-gradient(90deg,#25c486,var(--ok));box-shadow:0 0 14px rgba(61,220,151,.5)}
+.prog.done i::after{display:none}
+@keyframes shine{from{transform:translateX(-100%)}to{transform:translateX(100%)}}
+.prog-txt{font-size:12.5px;color:var(--muted);display:none;text-align:center}
+.prog-txt b{color:var(--text);font-size:15px}
 
 .pick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .pick a{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;background:#0d1017;border:1px solid var(--line);display:grid;place-items:center;color:var(--muted);font-size:12px;text-decoration:none}
@@ -457,11 +462,13 @@ $("#btnGo").onclick = grab;
 function hideResult(){
   $("#result").style.display = "none"; $("#media").innerHTML = ""; $("#picker").style.display = "none";
   $("#resBtns").style.display = "grid"; blobFile = null; $("#btnShare").style.display = "none";
-  $("#savedNote").style.display = "none";
+  $("#savedNote").style.display = "none"; $("#btnDl").style.display = "flex";
   setProg(-1);
 }
 function showResult(item, source){
   current = item; blobFile = null;
+  $("#btnDl").style.display = "flex"; $("#btnShare").style.display = "none"; setProg(-1);
+  $("#savedNote").style.display = "none";
   $("#fname").textContent = item.filename;
   const m = $("#media"); m.innerHTML = "";
   const el = document.createElement(isAudioName(item.filename) ? "audio" : "video");
@@ -496,45 +503,35 @@ function showPicker(d, source){
   addHistory(source, "Picker · " + items.length + " ឯកសារ");
 }
 
-const setProg = (pct, txt) => {
+const setProg = (pct, html, done) => {
   const p = $("#prog"), t = $("#progTxt");
-  if (pct < 0){ p.style.display = t.style.display = "none"; return; }
-  p.style.display = "block"; t.style.display = "block";
-  p.querySelector("i").style.width = Math.min(100, pct) + "%"; t.textContent = txt || "";
+  if (pct < 0){ p.style.display = t.style.display = "none"; p.classList.remove("done"); return; }
+  p.style.display = "block"; t.style.display = "block"; p.classList.toggle("done", !!done);
+  p.querySelector("i").style.width = Math.min(100, pct) + "%"; t.innerHTML = html || "";
 };
 
 const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
 const isAndroid = /Android/i.test(navigator.userAgent);
-const DL_HELP = isAndroid
-  ? "📥 Chrome កំពុងទាញយក — មើល Notification ខាងលើ។ ពេលរួច វិដេអូនៅក្នុង <b>Gallery → Album “Download”</b> ឬ <b>My Files → Download</b>។ បើ Chrome សួរ សូមចុច <b>Download</b>។"
-  : "📥 Browser កំពុងទាញយក — មើលក្នុង Folder <b>Downloads</b>។";
+const SAVED_HELP = isIOS
+  ? "✅ ជ្រើស <b>Save Video</b> ក្នុងផ្ទាំង Share ដើម្បីដាក់ចូល Photos"
+  : isAndroid
+    ? "✅ បានរក្សាទុក — មើលក្នុង <b>Gallery → Album “Download”</b> ឬ <b>My Files → Download</b>"
+    : "✅ បានរក្សាទុក — មើលក្នុង Folder <b>Downloads</b>";
 function showDlNote(html){ const n = $("#savedNote"); n.innerHTML = html; n.style.display = "block"; }
-
-// Native download: the browser's own download manager saves into Download/
-// and the phone's media scanner adds it to Gallery. Must run inside the tap.
 function nativeDownload(url, filename){
   const a = document.createElement("a");
   a.href = url; a.download = filename; a.rel = "noopener";
   document.body.appendChild(a); a.click(); a.remove();
 }
 
+// Step 1: download into the app with a live progress bar
 $("#btnDl").onclick = async () => {
   if (!current) return;
-  const { url, filename, server } = current;
-
-  // Files from our server are sent as "attachment" → let Chrome download them directly
-  if (server && !isIOS){
-    nativeDownload(url, filename);
-    showDlNote(DL_HELP);
-    toast("📥 កំពុងទាញយក...");
-    return;
-  }
-
-  // iPhone, or a direct .mp4 link: fetch into memory, then ask for one more tap to save
-  const btn = $("#btnDl"); btn.disabled = true;
+  const { url, filename } = current;
+  const btn = $("#btnDl"); btn.disabled = true; $("#btnShare").style.display = "none";
   try {
-    setProg(0, "កំពុងចាប់ផ្ដើម...");
+    setProg(0, "កំពុងភ្ជាប់...");
     const r = await fetch(url);
     if (!r.ok) throw new Error("HTTP " + r.status);
     const total = +r.headers.get("content-length") || 0;
@@ -542,24 +539,30 @@ $("#btnDl").onclick = async () => {
     let blob;
     if (r.body && r.body.getReader){
       const reader = r.body.getReader(); const chunks = []; let got = 0;
+      const t0 = performance.now();
       for (;;){
         const { done, value } = await reader.read(); if (done) break;
         chunks.push(value); got += value.length;
-        setProg(total ? got / total * 100 : 50, total ? `${fmtSize(got)} / ${fmtSize(total)} (${Math.round(got/total*100)}%)` : fmtSize(got));
+        const sec = (performance.now() - t0) / 1000, speed = sec > 0.3 ? fmtSize(got / sec) + "/s" : "";
+        const pct = total ? got / total * 100 : 0;
+        setProg(total ? pct : 60,
+          total ? `<b>${Math.floor(pct)}%</b> · ${fmtSize(got)} / ${fmtSize(total)}${speed ? " · " + speed : ""}`
+                : `<b>${fmtSize(got)}</b>${speed ? " · " + speed : ""}`);
       }
       blob = new Blob(chunks, { type });
     } else blob = await r.blob();
-    setProg(100, "✅ ទាញរួច · " + fmtSize(blob.size) + " — ចុចប៊ូតុងពណ៌បៃតង ដើម្បីរក្សាទុក");
     blobFile = new File([blob], filename, { type });
+    setProg(100, `<b>✅ ទាញរួច</b> · ${fmtSize(blob.size)}`, true);
+    // Step 2: one tap to save (Chrome only saves reliably inside a tap)
     const sb = $("#btnShare");
-    sb.textContent = isIOS ? "📲 រក្សាទុកក្នុង Photos / Files" : "💾 រក្សាទុកចូលទូរស័ព្ទ";
+    sb.textContent = isIOS ? "📲 រក្សាទុកក្នុង Photos" : "💾 រក្សាទុកចូល Gallery";
     sb.style.display = "flex";
-    toast("ចុច “" + sb.textContent.slice(3) + "”");
+    btn.style.display = "none";
   } catch(e){
-    // CORS / network block → let the browser fetch the link itself
+    // server blocked the in-app download → let the browser fetch the link itself
     setProg(-1);
     nativeDownload(url, filename);
-    showDlNote(DL_HELP);
+    showDlNote("📥 Browser កំពុងទាញយកផ្ទាល់ — មើល Notification / Downloads");
   } finally { btn.disabled = false; }
 };
 function saveBlob(blob, filename){
@@ -570,7 +573,8 @@ function saveBlob(blob, filename){
 }
 $("#btnShare").onclick = async () => {
   if (!blobFile) return;
-  if (!isIOS){ saveBlob(blobFile, blobFile.name); showDlNote(DL_HELP); return; }
+  if (!isIOS){ saveBlob(blobFile, blobFile.name); showDlNote(SAVED_HELP); return; }
+  showDlNote(SAVED_HELP);
   try { await navigator.share({ files:[blobFile], title: blobFile.name }); }
   catch(e){ if (e.name !== "AbortError") saveBlob(blobFile, blobFile.name); }
 };
