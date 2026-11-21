@@ -431,7 +431,7 @@ async function grab(){
     const d = await callServer(url);
     switch (d.status){
       case "tunnel": case "redirect": case "stream": case "success":
-        showResult({ url: d.url, filename: d.filename || "video.mp4" }, url);
+        showResult({ url: d.url, filename: d.filename || "video.mp4", server: true }, url);
         if (d.saved_to){
           $("#savedNote").textContent = "✅ បានរក្សាទុករួចក្នុង " + d.saved_to + " (មើលក្នុង Gallery / Files)";
           $("#savedNote").style.display = "block";
@@ -485,7 +485,7 @@ function showPicker(d, source){
     a.onclick = ev => {
       ev.preventDefault();
       const ext = it.type === "photo" ? ".jpg" : it.type === "audio" ? ".mp3" : ".mp4";
-      showResult({ url: it.url, filename: it.filename || ("item_" + (i + 1) + ext) }, source);
+      showResult({ url: it.url, filename: it.filename || ("item_" + (i + 1) + ext), server: true }, source);
     };
     box.appendChild(a);
   });
@@ -505,9 +505,33 @@ const setProg = (pct, txt) => {
 
 const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
+const isAndroid = /Android/i.test(navigator.userAgent);
+const DL_HELP = isAndroid
+  ? "📥 Chrome កំពុងទាញយក — មើល Notification ខាងលើ។ ពេលរួច វិដេអូនៅក្នុង <b>Gallery → Album “Download”</b> ឬ <b>My Files → Download</b>។ បើ Chrome សួរ សូមចុច <b>Download</b>។"
+  : "📥 Browser កំពុងទាញយក — មើលក្នុង Folder <b>Downloads</b>។";
+function showDlNote(html){ const n = $("#savedNote"); n.innerHTML = html; n.style.display = "block"; }
+
+// Native download: the browser's own download manager saves into Download/
+// and the phone's media scanner adds it to Gallery. Must run inside the tap.
+function nativeDownload(url, filename){
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.rel = "noopener";
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
 $("#btnDl").onclick = async () => {
   if (!current) return;
-  const { url, filename } = current;
+  const { url, filename, server } = current;
+
+  // Files from our server are sent as "attachment" → let Chrome download them directly
+  if (server && !isIOS){
+    nativeDownload(url, filename);
+    showDlNote(DL_HELP);
+    toast("📥 កំពុងទាញយក...");
+    return;
+  }
+
+  // iPhone, or a direct .mp4 link: fetch into memory, then ask for one more tap to save
   const btn = $("#btnDl"); btn.disabled = true;
   try {
     setProg(0, "កំពុងចាប់ផ្ដើម...");
@@ -525,23 +549,17 @@ $("#btnDl").onclick = async () => {
       }
       blob = new Blob(chunks, { type });
     } else blob = await r.blob();
-    setProg(100, "✅ រួចរាល់ · " + fmtSize(blob.size));
+    setProg(100, "✅ ទាញរួច · " + fmtSize(blob.size) + " — ចុចប៊ូតុងពណ៌បៃតង ដើម្បីរក្សាទុក");
     blobFile = new File([blob], filename, { type });
-
-    if (isIOS && navigator.canShare && navigator.canShare({ files:[blobFile] })){
-      $("#btnShare").style.display = "flex";
-      toast("ចុច “រក្សាទុកក្នុង Photos / Files”");
-    } else {
-      saveBlob(blob, filename);
-      if (navigator.canShare && navigator.canShare({ files:[blobFile] })) $("#btnShare").style.display = "flex";
-      toast("✅ បានទាញយក — មើលក្នុង Downloads");
-    }
+    const sb = $("#btnShare");
+    sb.textContent = isIOS ? "📲 រក្សាទុកក្នុង Photos / Files" : "💾 រក្សាទុកចូលទូរស័ព្ទ";
+    sb.style.display = "flex";
+    toast("ចុច “" + sb.textContent.slice(3) + "”");
   } catch(e){
-    // CORS or network block → let the browser handle the link directly
+    // CORS / network block → let the browser fetch the link itself
     setProg(-1);
-    toast("កំពុងបើក Link ដើម្បីទាញយកផ្ទាល់...");
-    const a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener"; a.download = filename;
-    document.body.appendChild(a); a.click(); a.remove();
+    nativeDownload(url, filename);
+    showDlNote(DL_HELP);
   } finally { btn.disabled = false; }
 };
 function saveBlob(blob, filename){
@@ -552,6 +570,7 @@ function saveBlob(blob, filename){
 }
 $("#btnShare").onclick = async () => {
   if (!blobFile) return;
+  if (!isIOS){ saveBlob(blobFile, blobFile.name); showDlNote(DL_HELP); return; }
   try { await navigator.share({ files:[blobFile], title: blobFile.name }); }
   catch(e){ if (e.name !== "AbortError") saveBlob(blobFile, blobFile.name); }
 };
