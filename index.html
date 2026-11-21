@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="km">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Video Grab">
+<title>Chivet-kh Video Grab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kantumruy+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0d12; --bg2:#11141b; --card:#151924; --card2:#1b2030; --line:#262c3d;
+  --text:#eef1f7; --muted:#8b93a7; --gold:#e8b44c; --gold2:#f6d58a;
+  --accent:#7c5cff; --accent2:#4fd1ff; --ok:#3ddc97; --err:#ff5d6c;
+  --r:18px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:"Kantumruy Pro",system-ui,sans-serif;font-size:15px}
+body{
+  min-height:100vh;
+  padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 30px);
+  background:
+    radial-gradient(600px 300px at 10% -5%, rgba(124,92,255,.22), transparent 60%),
+    radial-gradient(500px 280px at 110% 10%, rgba(232,180,76,.14), transparent 60%),
+    var(--bg);
+  background-attachment:fixed;
+}
+.wrap{max-width:560px;margin:0 auto}
+header{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+.logo{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;
+  background:linear-gradient(135deg,var(--gold),#b9832a);box-shadow:0 8px 24px rgba(232,180,76,.3)}
+.logo svg{width:24px;height:24px}
+header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.2px}
+header p{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+.icon-btn{margin-left:auto;width:42px;height:42px;border-radius:13px;border:1px solid var(--line);
+  background:var(--card);color:var(--text);display:grid;place-items:center;cursor:pointer}
+.icon-btn svg{width:20px;height:20px}
+.dot{position:absolute;width:9px;height:9px;border-radius:50%;background:var(--err);top:8px;right:8px;border:2px solid var(--card)}
+.dot.on{background:var(--ok)}
+
+.card{background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--line);
+  border-radius:var(--r);padding:16px;margin-bottom:14px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.label{font-size:12.5px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.input-row{display:flex;gap:8px}
+.input-box{flex:1;position:relative}
+textarea{width:100%;min-height:56px;max-height:120px;resize:none;border-radius:14px;border:1px solid var(--line);
+  background:#0d1017;color:var(--text);padding:15px 38px 12px 14px;font:inherit;font-size:14.5px;line-height:1.45;outline:none}
+textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,92,255,.18)}
+.clear{position:absolute;right:8px;top:12px;width:26px;height:26px;border-radius:50%;border:0;background:#232838;color:var(--muted);display:none;cursor:pointer;font-size:14px}
+.paste{border:1px solid var(--line);background:var(--card2);color:var(--gold2);border-radius:14px;padding:0 14px;
+  font:inherit;font-weight:600;font-size:13.5px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-width:70px}
+.paste svg{width:18px;height:18px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:12px;
+  background:#1d2232;border:1px solid var(--line);color:var(--muted)}
+.chip b{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+#platform{margin-top:10px;display:none}
+
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:#0d1017;border:1px solid var(--line);border-radius:14px;padding:4px;gap:4px;margin-top:14px}
+.seg button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:13px;padding:10px 4px;border-radius:10px;cursor:pointer;font-weight:500}
+.seg button.on{background:linear-gradient(135deg,#2a2350,#1e2440);color:var(--text);box-shadow:inset 0 0 0 1px rgba(124,92,255,.5)}
+.row{display:flex;gap:10px;margin-top:12px;align-items:center}
+.row .label{margin:0;flex:1}
+select{appearance:none;-webkit-appearance:none;background:#0d1017 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b93a7' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center;
+  border:1px solid var(--line);color:var(--text);border-radius:12px;padding:10px 34px 10px 12px;font:inherit;font-size:13.5px}
+
+.go{width:100%;margin-top:16px;border:0;border-radius:15px;padding:16px;font:inherit;font-size:16.5px;font-weight:700;color:#1a1204;cursor:pointer;
+  background:linear-gradient(135deg,var(--gold2),var(--gold) 50%,#c98f2c);box-shadow:0 10px 26px rgba(232,180,76,.28);
+  display:flex;align-items:center;justify-content:center;gap:10px}
+.go:disabled{opacity:.7}
+.spin{width:18px;height:18px;border:2.5px solid rgba(26,18,4,.3);border-top-color:#1a1204;border-radius:50%;animation:sp .8s linear infinite;display:none}
+.go.busy .spin{display:block}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+#result{display:none}
+.res-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.res-head .ok{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:rgba(61,220,151,.15);color:var(--ok)}
+.fname{font-weight:600;font-size:14px;word-break:break-word;line-height:1.4}
+video,audio{width:100%;border-radius:14px;background:#000;max-height:420px;margin-bottom:12px}
+audio{background:transparent}
+.btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.btn{border:1px solid var(--line);background:var(--card2);color:var(--text);border-radius:13px;padding:12px 10px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:7px;text-decoration:none}
+.btn svg{width:17px;height:17px}
+.btn.primary{grid-column:1/-1;border:0;background:linear-gradient(135deg,var(--accent),#5a3fe0);font-size:15px;padding:14px;box-shadow:0 8px 22px rgba(124,92,255,.3)}
+.btn.save{grid-column:1/-1;border:0;background:linear-gradient(135deg,#25c486,#169a66);display:none}
+.prog{height:8px;border-radius:99px;background:#0d1017;border:1px solid var(--line);overflow:hidden;margin:12px 0 4px;display:none}
+.prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent2),var(--accent));transition:width .2s}
+.prog-txt{font-size:12px;color:var(--muted);display:none;text-align:center}
+
+.pick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pick a{position:relative;aspect-ratio:1;border-radius:12px;overflow:hidden;background:#0d1017;border:1px solid var(--line);display:grid;place-items:center;color:var(--muted);font-size:12px;text-decoration:none}
+.pick img{width:100%;height:100%;object-fit:cover}
+.pick span{position:absolute;bottom:4px;left:4px;background:rgba(0,0,0,.65);color:#fff;padding:2px 7px;border-radius:8px;font-size:11px}
+
+.err{display:none;background:rgba(255,93,108,.09);border:1px solid rgba(255,93,108,.35);color:#ffc2c8;border-radius:14px;padding:12px 14px;font-size:13.5px;line-height:1.55;margin-bottom:14px}
+.err small{display:block;color:#c98a91;margin-top:4px;font-size:11.5px;word-break:break-all}
+
+.hist-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.hist-head h3{margin:0;font-size:14.5px}
+.link{background:none;border:0;color:var(--muted);font:inherit;font-size:12.5px;cursor:pointer}
+.hist{list-style:none;margin:0;padding:0}
+.hist li{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line);cursor:pointer}
+.hist li:first-child{border-top:0}
+.hist .pf{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:11px;font-weight:700;flex:none}
+.hist .t{flex:1;min-width:0}
+.hist .t div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px}
+.hist .t small{color:var(--muted);font-size:11.5px}
+.empty{color:var(--muted);font-size:13px;text-align:center;padding:12px 0}
+
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);opacity:0;pointer-events:none;transition:.25s;z-index:20}
+.sheet-bg.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;max-width:560px;margin:0 auto;background:var(--bg2);border:1px solid var(--line);border-bottom:0;
+  border-radius:22px 22px 0 0;padding:10px 18px calc(env(safe-area-inset-bottom) + 20px);transform:translateY(105%);transition:.3s cubic-bezier(.2,.8,.2,1);z-index:21;max-height:88vh;overflow:auto}
+.sheet.on{transform:none}
+.grab{width:42px;height:5px;border-radius:9px;background:#333a4e;margin:0 auto 14px}
+.sheet h2{font-size:17px;margin:0 0 4px}
+.sheet p.sub{color:var(--muted);font-size:12.5px;margin:0 0 16px;line-height:1.6}
+.field{margin-bottom:12px}
+.field input{width:100%;border-radius:12px;border:1px solid var(--line);background:#0d1017;color:var(--text);padding:13px;font:inherit;font-size:14px;outline:none}
+.field input:focus{border-color:var(--accent)}
+.status{font-size:12.5px;margin:4px 0 12px;min-height:18px}
+.status.ok{color:var(--ok)} .status.bad{color:var(--err)}
+.help{background:#0d1017;border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:12.5px;color:var(--muted);line-height:1.7;margin-top:14px}
+.help b{color:var(--gold2)}
+.help code{background:#1d2232;padding:1px 6px;border-radius:6px;color:var(--text);font-size:12px}
+
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom) + 24px);transform:translate(-50%,30px);background:#1f2536;border:1px solid var(--line);
+  color:var(--text);padding:11px 18px;border-radius:14px;font-size:13.5px;opacity:0;transition:.25s;z-index:40;max-width:90vw;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+footer{text-align:center;color:#545b6e;font-size:11.5px;margin-top:20px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="#1a1204" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg></div>
+    <div>
+      <h1>Chivet-kh Video Grab</h1>
+      <p>ដាក់ Link → ទាញវិដេអូ → រក្សាទុកក្នុងទូរស័ព្ទ</p>
+    </div>
+    <button class="icon-btn" id="btnSettings" aria-label="ការកំណត់" style="position:relative">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span class="dot" id="srvDot"></span>
+    </button>
+  </header>
+
+  <section class="card">
+    <div class="label">🔗 Link វីដេអូ (YouTube, TikTok, Facebook, Instagram, X ...)</div>
+    <div class="input-row">
+      <div class="input-box">
+        <textarea id="url" rows="1" placeholder="បិទភ្ជាប់ Link វីដេអូនៅទីនេះ..." autocomplete="off" autocapitalize="off" spellcheck="false"></textarea>
+        <button class="clear" id="btnClear" aria-label="លុប">✕</button>
+      </div>
+      <button class="paste" id="btnPaste">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+        បិទភ្ជាប់
+      </button>
+    </div>
+    <div id="platform" class="chip"><b></b><span></span></div>
+
+    <div class="seg" id="mode">
+      <button data-v="auto" class="on">🎬 វីដេអូ</button>
+      <button data-v="audio">🎵 សំឡេង</button>
+      <button data-v="mute">🔇 គ្មានសំឡេង</button>
+    </div>
+    <div class="row" id="qualityRow">
+      <div class="label">គុណភាពវីដេអូ</div>
+      <select id="quality">
+        <option value="max">ល្អបំផុត</option>
+        <option value="1080">1080p</option>
+        <option value="720" selected>720p</option>
+        <option value="480">480p</option>
+        <option value="360">360p</option>
+      </select>
+    </div>
+    <div class="row" id="audioRow" style="display:none">
+      <div class="label">ទម្រង់សំឡេង</div>
+      <select id="audioFormat">
+        <option value="mp3" selected>MP3</option>
+        <option value="best">ល្អបំផុត (ដើម)</option>
+        <option value="opus">OPUS</option>
+        <option value="wav">WAV</option>
+      </select>
+    </div>
+
+    <button class="go" id="btnGo"><span class="spin"></span><span id="goTxt">ទាញវិដេអូ</span></button>
+  </section>
+
+  <div class="err" id="err"></div>
+
+  <section class="card" id="result">
+    <div class="res-head">
+      <div class="ok"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+      <div class="fname" id="fname">video.mp4</div>
+    </div>
+    <div id="savedNote" style="display:none;background:rgba(61,220,151,.1);border:1px solid rgba(61,220,151,.35);color:#a8f0cf;border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:12px"></div>
+    <div id="media"></div>
+    <div id="picker" class="pick" style="display:none;margin-bottom:12px"></div>
+    <div class="prog" id="prog"><i></i></div>
+    <div class="prog-txt" id="progTxt"></div>
+    <div class="btns" id="resBtns" style="margin-top:10px">
+      <button class="btn primary" id="btnDl">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></svg>
+        ទាញយកចូលទូរស័ព្ទ
+      </button>
+      <button class="btn save" id="btnShare">📲 រក្សាទុកក្នុង Photos / Files</button>
+      <a class="btn" id="btnOpen" target="_blank" rel="noopener">↗ បើក Link</a>
+      <button class="btn" id="btnCopy">⧉ ចម្លង Link</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="hist-head"><h3>🕘 ប្រវត្តិ</h3><button class="link" id="btnClearHist">លុបទាំងអស់</button></div>
+    <ul class="hist" id="hist"></ul>
+  </section>
+
+  <footer>សូមទាញតែវិដេអូដែលអ្នកមានសិទ្ធិប្រើប្រាស់ ឬជាវិដេអូរបស់ខ្លួនឯង។<br>Chivet-kh Video Grab · v1.0</footer>
+</div>
+
+<!-- Settings sheet -->
+<div class="sheet-bg" id="sheetBg"></div>
+<div class="sheet" id="sheet">
+  <div class="grab"></div>
+  <h2>⚙️ ការកំណត់ Server</h2>
+  <p class="sub">App នេះត្រូវការ Server មួយសម្រាប់ទាញវិដេអូ។ ប្រើ <b>server.py</b> (yt-dlp) នៅលើកុំព្យូទ័ររបស់អ្នក ឬ Server ប្រភេទ cobalt ក៏បាន។</p>
+  <div class="field"><div class="label">Server URL</div><input id="srvUrl" placeholder="http://192.168.1.10:8800" inputmode="url" autocapitalize="off" autocomplete="off"></div>
+  <div class="field"><div class="label">API Key (ស្រេចចិត្ត)</div><input id="srvKey" placeholder="ទុកទទេ បើមិនមាន" autocapitalize="off" autocomplete="off"></div>
+  <div class="status" id="srvStatus"></div>
+  <div class="btns">
+    <button class="btn" id="btnTest">🔌 សាកល្បងភ្ជាប់</button>
+    <button class="btn" id="btnSave" style="background:linear-gradient(135deg,var(--gold2),var(--gold));color:#1a1204;border:0">💾 រក្សាទុក</button>
+  </div>
+  <div class="help">
+    <b>📱 ប្រើលើទូរស័ព្ទ Android តែម្នាក់ឯង (គ្មាន PC):</b><br>
+    1. ដំឡើង <b>Termux</b> ពី F-Droid<br>
+    2. ក្នុង Termux វាយ:<br>
+    <code>pkg update -y && pkg install -y python ffmpeg</code><br>
+    <code>pip install -U yt-dlp</code><br>
+    <code>termux-setup-storage</code> (ចុច Allow)<br>
+    3. ដាក់ index.html + server.py ក្នុង Folder Download រួចវាយ:<br>
+    <code>cd ~/storage/downloads && python server.py</code><br>
+    4. បើក Chrome ហើយចូល <code>http://127.0.0.1:8800</code><br>
+    វិដេអូនឹងរក្សាទុកក្នុង <b>Download/VideoGrab</b><br><br>
+    <b>💻 ប្រើជាមួយ PC (WiFi តែមួយ):</b><br>
+    1. នៅលើ PC: <code>pip install yt-dlp</code><br>
+    2. Run: <code>python server.py</code><br>
+    3. ទូរស័ព្ទ និង PC ត្រូវនៅ WiFi តែមួយ<br>
+    4. បើក Link ដែល server.py បង្ហាញ (ឧ. <code>http://192.168.1.10:8800</code>) នៅលើ Browser ទូរស័ព្ទ — App នឹងភ្ជាប់ដោយស្វ័យប្រវត្តិ<br>
+    5. ចុច Share → <b>Add to Home Screen</b> ដើម្បីប្រើដូច App ពិត<br><br>
+    <b>ចំណាំ:</b> បើបើក App នេះពី https (ឧ. GitHub Pages) ត្រូវប្រើ Server ដែលជា https ដែរ។ Link ផ្ទាល់ .mp4 អាចទាញបានដោយមិនចាំបាច់មាន Server។
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+"use strict";
+const $ = s => document.querySelector(s);
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+
+/* ---------- state ---------- */
+let cfg = store.get("vg_cfg", { server: "", key: "", mode: "auto", quality: "720", audioFormat: "mp3" });
+let history = store.get("vg_hist", []);
+let current = null;      // {url, filename}
+let blobFile = null;     // File after download (for share)
+
+/* ---------- platform detection ---------- */
+const PLATFORMS = [
+  { id:"youtube",  name:"YouTube",   color:"#ff3d3d", re:/(youtube\.com|youtu\.be)/i },
+  { id:"tiktok",   name:"TikTok",    color:"#25f4ee", re:/tiktok\.com/i },
+  { id:"facebook", name:"Facebook",  color:"#1877f2", re:/(facebook\.com|fb\.watch|fb\.com)/i },
+  { id:"instagram",name:"Instagram", color:"#e1306c", re:/instagram\.com/i },
+  { id:"x",        name:"X / Twitter",color:"#dddddd", re:/(twitter\.com|x\.com)/i },
+  { id:"douyin",   name:"Douyin",    color:"#fe2c55", re:/douyin\.com/i },
+  { id:"bilibili", name:"Bilibili",  color:"#00a1d6", re:/(bilibili\.com|b23\.tv)/i },
+  { id:"reddit",   name:"Reddit",    color:"#ff4500", re:/(reddit\.com|redd\.it)/i },
+  { id:"pinterest",name:"Pinterest", color:"#e60023", re:/(pinterest\.|pin\.it)/i },
+  { id:"vimeo",    name:"Vimeo",     color:"#1ab7ea", re:/vimeo\.com/i },
+  { id:"soundcloud",name:"SoundCloud",color:"#ff7700",re:/soundcloud\.com/i },
+  { id:"telegram", name:"Telegram",  color:"#2aabee", re:/t\.me\//i },
+];
+const DIRECT_RE = /\.(mp4|webm|mov|m4v|mkv|mp3|m4a|aac|wav|ogg)(\?|#|$)/i;
+const detect = u => {
+  if (!u) return null;
+  if (DIRECT_RE.test(u)) return { id:"direct", name:"Link ឯកសារផ្ទាល់", color:"#3ddc97" };
+  return PLATFORMS.find(p => p.re.test(u)) || { id:"other", name:"គេហទំព័រផ្សេង", color:"#8b93a7" };
+};
+const extractUrl = text => {
+  const m = (text || "").match(/https?:\/\/[^\s<>"'`]+/i);
+  return m ? m[0].replace(/[),.;!?]+$/, "") : "";
+};
+
+/* ---------- UI helpers ---------- */
+let toastT;
+const toast = msg => {
+  const t = $("#toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), 2600);
+};
+const showErr = (msg, detail) => {
+  const e = $("#err");
+  if (!msg){ e.style.display = "none"; return; }
+  e.innerHTML = "⚠️ " + esc(msg) + (detail ? "<small>" + esc(detail) + "</small>" : "");
+  e.style.display = "block";
+};
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const busy = on => {
+  const b = $("#btnGo"); b.disabled = on; b.classList.toggle("busy", on);
+  $("#goTxt").textContent = on ? "កំពុងទាញ... សូមរង់ចាំ" : "ទាញវិដេអូ";
+};
+const fmtSize = n => n > 1048576 ? (n/1048576).toFixed(1) + " MB" : (n/1024).toFixed(0) + " KB";
+const fileNameFromUrl = u => {
+  try { const p = new URL(u).pathname.split("/").pop(); return decodeURIComponent(p) || "video.mp4"; }
+  catch(e){ return "video.mp4"; }
+};
+const isAudioName = n => /\.(mp3|m4a|aac|wav|ogg|opus)$/i.test(n || "");
+
+/* ---------- input ---------- */
+const urlEl = $("#url");
+const onInput = () => {
+  const u = extractUrl(urlEl.value);
+  $("#btnClear").style.display = urlEl.value ? "block" : "none";
+  const p = detect(u), chip = $("#platform");
+  if (p){ chip.style.display = "inline-flex"; chip.querySelector("b").style.background = p.color; chip.querySelector("span").textContent = p.name; }
+  else chip.style.display = "none";
+};
+urlEl.addEventListener("input", onInput);
+urlEl.addEventListener("keydown", e => { if (e.key === "Enter"){ e.preventDefault(); grab(); } });
+$("#btnClear").onclick = () => { urlEl.value = ""; onInput(); urlEl.focus(); };
+$("#btnPaste").onclick = async () => {
+  try {
+    const t = await navigator.clipboard.readText();
+    if (!t) throw 0;
+    urlEl.value = extractUrl(t) || t.trim(); onInput();
+    toast("✅ បានបិទភ្ជាប់");
+  } catch(e){
+    urlEl.focus(); toast("សូមចុចសង្កត់លើប្រអប់ ហើយជ្រើស Paste");
+  }
+};
+
+/* ---------- options ---------- */
+const setMode = v => {
+  cfg.mode = v;
+  document.querySelectorAll("#mode button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  $("#qualityRow").style.display = v === "audio" ? "none" : "flex";
+  $("#audioRow").style.display = v === "audio" ? "flex" : "none";
+  store.set("vg_cfg", cfg);
+};
+document.querySelectorAll("#mode button").forEach(b => b.onclick = () => setMode(b.dataset.v));
+$("#quality").onchange = e => { cfg.quality = e.target.value; store.set("vg_cfg", cfg); };
+$("#audioFormat").onchange = e => { cfg.audioFormat = e.target.value; store.set("vg_cfg", cfg); };
+$("#quality").value = cfg.quality; $("#audioFormat").value = cfg.audioFormat; setMode(cfg.mode);
+
+/* ---------- server API (cobalt-compatible) ---------- */
+const apiHeaders = () => {
+  const h = { "Accept":"application/json", "Content-Type":"application/json" };
+  if (cfg.key) h["Authorization"] = "Api-Key " + cfg.key;
+  return h;
+};
+const normServer = s => (s || "").trim().replace(/\/+$/, "");
+
+const ERR_KH = [
+  [/link\.(invalid|unsupported)|service\.unsupported/, "Link នេះមិនត្រឹមត្រូវ ឬមិនគាំទ្រទេ។"],
+  [/private|login|age|auth.*required/, "វីដេអូនេះជា Private / ត្រូវ Login ទើបមើលបាន។"],
+  [/unavailable|not.?found|404|deleted/, "រកវីដេអូមិនឃើញ (អាចត្រូវបានលុប ឬបិទ)។"],
+  [/too_long|duration/, "វីដេអូវែងពេក សម្រាប់ Server នេះ។"],
+  [/rate|429|too many/, "ទាញញឹកញាប់ពេក — សូមរង់ចាំបន្តិចសិន។"],
+  [/(api\.)?auth|key|jwt|turnstile|401|403/, "Server ត្រូវការ API Key ឬមិនអនុញ្ញាតឲ្យប្រើ — សូមពិនិត្យការកំណត់។"],
+  [/fetch|empty|unreachable|timeout/, "Server ទាញវិដេអូពីប្រភពមិនបាន — សូមសាកម្ដងទៀត ឬប្ដូរគុណភាព។"],
+];
+const errToKh = code => {
+  const c = String(code || "").toLowerCase();
+  for (const [re, kh] of ERR_KH) if (re.test(c)) return kh;
+  return "មានបញ្ហាពេលទាញវិដេអូ។";
+};
+
+async function callServer(url){
+  const server = normServer(cfg.server);
+  const body = {
+    url,
+    videoQuality: cfg.quality,
+    downloadMode: cfg.mode,
+    audioFormat: cfg.audioFormat,
+    filenameStyle: "basic",
+    youtubeVideoCodec: "h264"
+  };
+  const ctrl = new AbortController();
+  const tm = setTimeout(() => ctrl.abort(), 300000);
+  try {
+    const r = await fetch(server + "/", { method:"POST", headers: apiHeaders(), body: JSON.stringify(body), signal: ctrl.signal });
+    let data; try { data = await r.json(); } catch(e){ throw { kh:"Server ឆ្លើយតបមិនត្រឹមត្រូវ (មិនមែន JSON)។", detail:"HTTP " + r.status }; }
+    return data;
+  } catch(e){
+    if (e && e.kh) throw e;
+    if (e && e.name === "AbortError") throw { kh:"អស់ពេលរង់ចាំ — វីដេអូធំពេក ឬ Server យឺត។" };
+    throw { kh:"ភ្ជាប់ទៅ Server មិនបាន។ ពិនិត្យថា Server កំពុង Run ហើយទូរស័ព្ទនៅ WiFi តែមួយ។", detail: server + (location.protocol === "https:" && server.startsWith("http:") ? " — Page https មិនអាចហៅ Server http បានទេ" : "") };
+  } finally { clearTimeout(tm); }
+}
+
+/* ---------- main ---------- */
+async function grab(){
+  showErr();
+  const url = extractUrl(urlEl.value);
+  if (!url){ toast("សូមដាក់ Link វីដេអូជាមុនសិន"); urlEl.focus(); return; }
+  hideResult();
+
+  if (DIRECT_RE.test(url)){
+    showResult({ url, filename: fileNameFromUrl(url) }, url);
+    return;
+  }
+  if (!normServer(cfg.server)){
+    showErr("មិនទាន់កំណត់ Server ទេ — សូមចុច ⚙️ ដើម្បីកំណត់។");
+    openSheet(); return;
+  }
+
+  busy(true);
+  try {
+    const d = await callServer(url);
+    switch (d.status){
+      case "tunnel": case "redirect": case "stream": case "success":
+        showResult({ url: d.url, filename: d.filename || "video.mp4" }, url);
+        if (d.saved_to){
+          $("#savedNote").textContent = "✅ បានរក្សាទុករួចក្នុង " + d.saved_to + " (មើលក្នុង Gallery / Files)";
+          $("#savedNote").style.display = "block";
+        }
+        break;
+      case "picker":
+        showPicker(d, url); break;
+      case "local-processing":
+        showErr("Server នេះទាមទារ Processing នៅលើ Browser ដែល App នេះមិនគាំទ្រ — សូមប្រើ server.py។"); break;
+      case "error":
+        const code = d.error && (d.error.code || d.error);
+        showErr(errToKh(code), String(code || "") + (d.error && d.error.context && d.error.context.message ? " — " + d.error.context.message : "")); break;
+      default:
+        showErr("Server ឆ្លើយតបមិនស្គាល់។", JSON.stringify(d).slice(0, 200));
+    }
+  } catch(e){
+    showErr(e.kh || "មានបញ្ហា។", e.detail);
+  } finally { busy(false); }
+}
+$("#btnGo").onclick = grab;
+
+/* ---------- result ---------- */
+function hideResult(){
+  $("#result").style.display = "none"; $("#media").innerHTML = ""; $("#picker").style.display = "none";
+  $("#resBtns").style.display = "grid"; blobFile = null; $("#btnShare").style.display = "none";
+  $("#savedNote").style.display = "none";
+  setProg(-1);
+}
+function showResult(item, source){
+  current = item; blobFile = null;
+  $("#fname").textContent = item.filename;
+  const m = $("#media"); m.innerHTML = "";
+  const el = document.createElement(isAudioName(item.filename) ? "audio" : "video");
+  el.controls = true; el.playsInline = true; el.preload = "metadata"; el.src = item.url;
+  el.onerror = () => { el.remove(); };
+  m.appendChild(el);
+  $("#btnOpen").href = item.url;
+  $("#picker").style.display = "none"; $("#resBtns").style.display = "grid";
+  $("#result").style.display = "block";
+  $("#result").scrollIntoView({ behavior:"smooth", block:"start" });
+  addHistory(source, item.filename);
+}
+function showPicker(d, source){
+  const box = $("#picker"); box.innerHTML = "";
+  const items = (d.picker || []).slice();
+  if (d.audio) items.push({ type:"audio", url:d.audio, filename:d.audioFilename });
+  items.forEach((it, i) => {
+    const a = document.createElement("a"); a.href = "#";
+    a.innerHTML = (it.thumb ? '<img loading="lazy" referrerpolicy="no-referrer" src="' + esc(it.thumb) + '" alt="">' : (it.type === "audio" ? "🎵" : it.type === "photo" ? "🖼️" : "🎬")) +
+      "<span>" + (i + 1) + " · " + esc(it.type || "file") + "</span>";
+    a.onclick = ev => {
+      ev.preventDefault();
+      const ext = it.type === "photo" ? ".jpg" : it.type === "audio" ? ".mp3" : ".mp4";
+      showResult({ url: it.url, filename: it.filename || ("item_" + (i + 1) + ext) }, source);
+    };
+    box.appendChild(a);
+  });
+  $("#fname").textContent = "ជ្រើសរើសឯកសារ (" + items.length + ")";
+  $("#media").innerHTML = ""; box.style.display = "grid"; $("#resBtns").style.display = "none";
+  $("#result").style.display = "block";
+  $("#result").scrollIntoView({ behavior:"smooth", block:"start" });
+  addHistory(source, "Picker · " + items.length + " ឯកសារ");
+}
+
+const setProg = (pct, txt) => {
+  const p = $("#prog"), t = $("#progTxt");
+  if (pct < 0){ p.style.display = t.style.display = "none"; return; }
+  p.style.display = "block"; t.style.display = "block";
+  p.querySelector("i").style.width = Math.min(100, pct) + "%"; t.textContent = txt || "";
+};
+
+const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+$("#btnDl").onclick = async () => {
+  if (!current) return;
+  const { url, filename } = current;
+  const btn = $("#btnDl"); btn.disabled = true;
+  try {
+    setProg(0, "កំពុងចាប់ផ្ដើម...");
+    const r = await fetch(url);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const total = +r.headers.get("content-length") || 0;
+    const type = r.headers.get("content-type") || (isAudioName(filename) ? "audio/mpeg" : "video/mp4");
+    let blob;
+    if (r.body && r.body.getReader){
+      const reader = r.body.getReader(); const chunks = []; let got = 0;
+      for (;;){
+        const { done, value } = await reader.read(); if (done) break;
+        chunks.push(value); got += value.length;
+        setProg(total ? got / total * 100 : 50, total ? `${fmtSize(got)} / ${fmtSize(total)} (${Math.round(got/total*100)}%)` : fmtSize(got));
+      }
+      blob = new Blob(chunks, { type });
+    } else blob = await r.blob();
+    setProg(100, "✅ រួចរាល់ · " + fmtSize(blob.size));
+    blobFile = new File([blob], filename, { type });
+
+    if (isIOS && navigator.canShare && navigator.canShare({ files:[blobFile] })){
+      $("#btnShare").style.display = "flex";
+      toast("ចុច “រក្សាទុកក្នុង Photos / Files”");
+    } else {
+      saveBlob(blob, filename);
+      if (navigator.canShare && navigator.canShare({ files:[blobFile] })) $("#btnShare").style.display = "flex";
+      toast("✅ បានទាញយក — មើលក្នុង Downloads");
+    }
+  } catch(e){
+    // CORS or network block → let the browser handle the link directly
+    setProg(-1);
+    toast("កំពុងបើក Link ដើម្បីទាញយកផ្ទាល់...");
+    const a = document.createElement("a"); a.href = url; a.target = "_blank"; a.rel = "noopener"; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+  } finally { btn.disabled = false; }
+};
+function saveBlob(blob, filename){
+  const u = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = u; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(u), 60000);
+}
+$("#btnShare").onclick = async () => {
+  if (!blobFile) return;
+  try { await navigator.share({ files:[blobFile], title: blobFile.name }); }
+  catch(e){ if (e.name !== "AbortError") saveBlob(blobFile, blobFile.name); }
+};
+$("#btnCopy").onclick = async () => {
+  if (!current) return;
+  try { await navigator.clipboard.writeText(current.url); toast("✅ បានចម្លង Link"); }
+  catch(e){ toast("ចម្លងមិនបាន"); }
+};
+
+/* ---------- history ---------- */
+function addHistory(url, name){
+  const p = detect(url);
+  history = history.filter(h => h.url !== url);
+  history.unshift({ url, name, pid: p.id, pname: p.name, color: p.color, t: Date.now() });
+  history = history.slice(0, 30); store.set("vg_hist", history); renderHistory();
+}
+function renderHistory(){
+  const ul = $("#hist");
+  if (!history.length){ ul.innerHTML = '<div class="empty">មិនទាន់មានប្រវត្តិទេ</div>'; return; }
+  ul.innerHTML = history.map((h, i) => {
+    const d = new Date(h.t);
+    const when = d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
+    return `<li data-i="${i}"><div class="pf" style="background:${h.color}22;color:${h.color}">${esc((h.pname||"?").slice(0,2).toUpperCase())}</div>
+      <div class="t"><div>${esc(h.name)}</div><small>${esc(h.pname)} · ${esc(when)}</small></div><span style="color:var(--muted)">↻</span></li>`;
+  }).join("");
+  ul.querySelectorAll("li").forEach(li => li.onclick = () => {
+    urlEl.value = history[+li.dataset.i].url; onInput(); window.scrollTo({ top:0, behavior:"smooth" });
+  });
+}
+$("#btnClearHist").onclick = () => { history = []; store.set("vg_hist", history); renderHistory(); toast("បានលុបប្រវត្តិ"); };
+
+/* ---------- settings ---------- */
+const openSheet = () => {
+  $("#srvUrl").value = cfg.server; $("#srvKey").value = cfg.key; $("#srvStatus").textContent = "";
+  $("#sheet").classList.add("on"); $("#sheetBg").classList.add("on");
+};
+const closeSheet = () => { $("#sheet").classList.remove("on"); $("#sheetBg").classList.remove("on"); };
+$("#btnSettings").onclick = openSheet; $("#sheetBg").onclick = closeSheet;
+
+async function testServer(server, key){
+  const h = { "Accept":"application/json" }; if (key) h["Authorization"] = "Api-Key " + key;
+  const ctrl = new AbortController(); const tm = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const r = await fetch(normServer(server) + "/", { headers:h, signal:ctrl.signal });
+    const j = await r.json();
+    if (j.cobalt) return "cobalt v" + (j.cobalt.version || "?");
+    if (j.server) return j.server + (j.version ? " v" + j.version : "");
+    throw 0;
+  } finally { clearTimeout(tm); }
+}
+$("#btnTest").onclick = async () => {
+  const s = $("#srvStatus"); s.className = "status"; s.textContent = "កំពុងសាកល្បង...";
+  try {
+    const info = await testServer($("#srvUrl").value, $("#srvKey").value.trim());
+    s.className = "status ok"; s.textContent = "✅ ភ្ជាប់បានជោគជ័យ · " + info;
+  } catch(e){
+    s.className = "status bad"; s.textContent = "❌ ភ្ជាប់មិនបាន — ពិនិត្យ URL / WiFi / Server";
+  }
+};
+$("#btnSave").onclick = () => {
+  cfg.server = normServer($("#srvUrl").value); cfg.key = $("#srvKey").value.trim();
+  store.set("vg_cfg", cfg); closeSheet(); toast("💾 បានរក្សាទុក"); checkDot();
+};
+async function checkDot(){
+  const dot = $("#srvDot");
+  if (!cfg.server){ dot.classList.remove("on"); return; }
+  try { await testServer(cfg.server, cfg.key); dot.classList.add("on"); } catch(e){ dot.classList.remove("on"); }
+}
+
+/* ---------- auto-connect when served by server.py ---------- */
+(async () => {
+  renderHistory();
+  if (!cfg.server){
+    const tries = [];
+    if (/^https?:$/.test(location.protocol)) tries.push(location.origin);
+    tries.push("http://127.0.0.1:8800");          // server.py running on this phone (Termux)
+    for (const s of tries){
+      try {
+        const info = await testServer(s, "");
+        cfg.server = s; store.set("vg_cfg", cfg);
+        toast("🔌 ភ្ជាប់ Server ស្វ័យប្រវត្តិ · " + info);
+        break;
+      } catch(e){}
+    }
+  }
+  checkDot();
+  // Accept ?url= / shared text when launched from share target or bookmark
+  try {
+    const q = new URLSearchParams(location.search);
+    const shared = q.get("url") || q.get("text");
+    if (shared){ urlEl.value = extractUrl(shared) || shared; onInput(); }
+  } catch(e){}
+})();
+})();
+</script>
+</body>
+</html>
